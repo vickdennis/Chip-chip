@@ -250,8 +250,74 @@ export const CheckoutOnboardingModal: React.FC<CheckoutOnboardingModalProps> = (
     }
   };
 
+  const handleTransferToWhatsApp = () => {
+    const refString = `TRANSFER-${Date.now()}`;
+    const cleanCustomerName = data.customerName || data.name || 'Valued Client';
+    const cleanCardName = data.name || cleanCustomerName;
+    const cleanHandle = data.handle || 'user';
+    const cleanEmail = data.email || 'Not provided';
+    const cleanPhone = data.whatsapp || 'Not provided';
+    const tierDisplay = (data.tier || 'metal').toUpperCase();
+    const formattedAmount = `₦${totalAmountNgn.toLocaleString()}`;
+
+    const messageLines = [
+      'Hello CHIP NG Concierge! I have made a direct bank transfer for my CHIP NFC Card.',
+      '',
+      `📌 *Order Ref:* ${refString}`,
+      `💳 *Card Tier:* ${tierDisplay} NFC Card (${data.material || 'Standard'})`,
+      `💰 *Amount Paid:* ${formattedAmount}`,
+      '🏦 *Destination Bank:* Okoye Chuka Victor (Opay: 8100764154)',
+      '',
+      '👤 *Customer Details:*',
+      `• Name: ${cleanCustomerName}`,
+      `• Name on Card: ${cleanCardName}`,
+      `• Handle: chipng.com/@${cleanHandle}`,
+      `• Phone/WhatsApp: ${cleanPhone}`,
+      `• Email: ${cleanEmail}`,
+      '',
+      '📎 I am attaching my transfer receipt screenshot below for instant verification & dispatch queueing.'
+    ];
+
+    const messageText = messageLines.join('\n');
+    const waUrl = `https://wa.me/2348100764154?text=${encodeURIComponent(messageText)}`;
+
+    // 1. Instantly trigger WhatsApp via direct window location or safe popup
+    try {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = waUrl;
+      } else {
+        const opened = window.open(waUrl, '_blank', 'noopener,noreferrer');
+        if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+          window.location.href = waUrl;
+        }
+      }
+    } catch (e) {
+      window.location.href = waUrl;
+    }
+
+    // 2. Register order and transition to Stage 6B onboarding
+    handlePaystackSuccess({ reference: refString });
+  };
+
   const copyBankDetails = () => {
-    navigator.clipboard.writeText('8100764154');
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText('8100764154');
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = '8100764154';
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+    } catch (e) {
+      console.warn('Clipboard write failed:', e);
+    }
     setCopiedBank(true);
     setTimeout(() => setCopiedBank(false), 2500);
   };
@@ -547,20 +613,14 @@ export const CheckoutOnboardingModal: React.FC<CheckoutOnboardingModalProps> = (
                   After transferring <strong>₦{totalAmountNgn.toLocaleString()}</strong> to <strong>Okoye Chuka Victor (Opay: 8100764154)</strong>, click the button below to send your transfer receipt directly to our WhatsApp Concierge for instant dispatch queueing:
                 </p>
 
-                <a
-                  href={`https://wa.me/2348100764154?text=${encodeURIComponent(
-                    `Hello CHIP Concierge! I have made a direct bank transfer of ₦${totalAmountNgn.toLocaleString()} to Okoye Chuka Victor (Opay: 8100764154) for my ${data.tier.toUpperCase()} NFC Card.\n\nCustomer Name: ${data.customerName}\nCustom Name on Card: ${data.name}\nHandle: chipng.com/@${data.handle}\nEmail: ${data.email}\nPhone: ${data.whatsapp}\nOrder Total: ₦${totalAmountNgn.toLocaleString()}`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => {
-                    handlePaystackSuccess({ reference: `TRANSFER-${Date.now()}` });
-                  }}
-                  className="w-full py-3.5 rounded-xl font-bold text-sm bg-[#25D366] text-black hover:bg-[#20bd5a] flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/50"
+                <button
+                  type="button"
+                  onClick={handleTransferToWhatsApp}
+                  className="w-full py-3.5 rounded-xl font-bold text-sm bg-[#25D366] text-black hover:bg-[#20bd5a] flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/50 active:scale-[0.99] transition-transform"
                 >
                   <MessageCircle className="w-4 h-4 fill-current" />
                   <span>I Have Transferred • Send Receipt on WhatsApp</span>
-                </a>
+                </button>
 
                 {/* Logistics Partner Trust Banner with DHL and GIG Logistics Logos */}
                 <LogisticsTrustBanner className="mt-1" />
@@ -661,17 +721,30 @@ export const CheckoutOnboardingModal: React.FC<CheckoutOnboardingModalProps> = (
 
             {/* Next Steps Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <a
-                href={`https://wa.me/2348100764154?text=${encodeURIComponent(
-                  `Hello CHIP VIP Concierge! I just completed my order for a ${data.tier.toUpperCase()} card.\n\nOrder Ref: ${paymentSuccess.reference}\nName: ${data.customerName}\nLaser Name: ${data.name}\nHandle: chipng.com/@${data.handle}\n\nI would like to upload my high-resolution logo for laser-engraving now.`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm bg-[#25D366] text-black hover:bg-[#20bd5a] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-950/40"
+              <button
+                type="button"
+                onClick={() => {
+                  const msg = `Hello CHIP VIP Concierge! I just completed my order for a ${data.tier.toUpperCase()} card.\n\nOrder Ref: ${paymentSuccess.reference}\nName: ${data.customerName}\nLaser Name: ${data.name}\nHandle: chipng.com/@${data.handle}\n\nI would like to upload my high-resolution logo for laser-engraving now.`;
+                  const url = `https://wa.me/2348100764154?text=${encodeURIComponent(msg)}`;
+                  try {
+                    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                    if (isMobile) {
+                      window.location.href = url;
+                    } else {
+                      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+                      if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+                        window.location.href = url;
+                      }
+                    }
+                  } catch (e) {
+                    window.location.href = url;
+                  }
+                }}
+                className="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm bg-[#25D366] text-black hover:bg-[#20bd5a] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-950/40 active:scale-[0.99]"
               >
                 <MessageCircle className="w-4 h-4 fill-current" />
                 <span>Upload Logo via WhatsApp Concierge</span>
-              </a>
+              </button>
 
               {onNavigate && (
                 <button
