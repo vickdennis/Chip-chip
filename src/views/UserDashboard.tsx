@@ -7,7 +7,7 @@ import { PaystackButton } from 'react-paystack';
 import { QRCodeSVG } from 'qrcode.react';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '../utils/cropImage';
-import { Bell, Save, CreditCard, Eye, UserCircle, Upload, Trash2, Link, GripVertical, Plus, Globe, AtSign, Rss, Calendar, QrCode, Download, Settings, Loader2, MapPin, Phone, Mail, Share, Shield, Activity, Wallet, Camera, AlertTriangle, X, SmartphoneNfc , LogOut, Pencil, User, Users } from 'lucide-react';
+import { Bell, Save, CreditCard, Eye, UserCircle, Upload, Trash2, Link, GripVertical, Plus, Globe, AtSign, Rss, Calendar, QrCode, Download, Settings, Loader2, MapPin, Phone, Mail, Share, Shield, Activity, Wallet, Camera, AlertTriangle, X, SmartphoneNfc , LogOut, Pencil, User, Users, UserCheck } from 'lucide-react';
 import { FaXTwitter, FaGithub, FaLinkedin, FaInstagram, FaFacebook, FaYoutube, FaTwitch, FaTiktok, FaSnapchat, FaPinterest, FaReddit, FaDiscord, FaSlack, FaTelegram, FaWhatsapp, FaWeixin, FaLine, FaMedium, FaDribbble, FaBehance, FaFigma, FaDev, FaProductHunt, FaStackOverflow, FaGitlab, FaBitbucket, FaSpotify, FaSoundcloud, FaPatreon, FaPaypal } from 'react-icons/fa6';
 import { SiBuymeacoffee, SiSubstack, SiApplemusic, SiVenmo } from 'react-icons/si';
 
@@ -82,6 +82,28 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
   const [sales, setSales] = useState<any[]>([]);
   const [profileViews, setProfileViews] = useState(0);
   const [activeTab, setActiveTab] = useState<'analytics' | 'leads' | 'profile' | 'links' | 'social' | 'shop' | 'appearance' | 'gallery' | 'nfc' | 'buy-nfc' | 'settings'>('profile');
+  const [leadsStats, setLeadsStats] = useState<{ total: number; newCount: number; convertedCount: number }>({ total: 0, newCount: 0, convertedCount: 0 });
+
+  const fetchLeadsStats = async () => {
+    if (!profile?.id) return;
+    try {
+      const res = await fetch(`/api/leads/profile/${profile.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLeadsStats({
+          total: data.total || (data.leads ? data.leads.length : 0),
+          newCount: data.newCount || 0,
+          convertedCount: data.convertedCount || 0
+        });
+      }
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (profile?.id) {
+      fetchLeadsStats();
+    }
+  }, [profile?.id]);
 
   const [setupGuideActive, setSetupGuideActive] = useState(false);
   const [setupStep, setSetupStep] = useState(1);
@@ -749,7 +771,7 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
   return (
     <AdminLayout onNavigate={onNavigate} activePath="dashboard" isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} hideMobileNav={true} topRightContent={NotificationBell()} isAdmin={profile?.is_admin}>
       <div className="pb-32">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-2 pb-24">
+      <div className={`${activeTab === 'leads' || activeTab === 'analytics' ? 'max-w-5xl' : 'max-w-2xl'} mx-auto px-4 sm:px-6 pt-2 pb-24 transition-all duration-200`}>
         
         {/* Live System Broadcast Banner for all unread announcements */}
         {latestUnreadBroadcast && (
@@ -814,6 +836,22 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
               <User className="w-4 h-4" /> My Profile
             </button>
             <button 
+              onClick={() => setActiveTab('leads')}
+              className={`shrink-0 px-4 py-2 text-[13px] font-bold rounded-[12px] transition-all flex items-center gap-2 cursor-pointer ${activeTab === 'leads' ? 'bg-[#D2F843] text-neutral-950 shadow-xs' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}`}
+            >
+              <UserCheck className="w-4 h-4" /> 
+              <span>2-Way Contacts</span>
+              {leadsStats.newCount > 0 ? (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-amber-500 text-white font-bold leading-none animate-pulse">
+                  {leadsStats.newCount}
+                </span>
+              ) : leadsStats.total > 0 ? (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-neutral-200 dark:bg-white/10 text-neutral-700 dark:text-neutral-300 font-bold leading-none">
+                  {leadsStats.total}
+                </span>
+              ) : null}
+            </button>
+            <button 
               onClick={() => setActiveTab('social')}
               className={`shrink-0 px-4 py-2 text-[13px] font-bold rounded-[12px] transition-all flex items-center gap-2 cursor-pointer ${activeTab === 'social' ? 'bg-[#D2F843] text-neutral-950 shadow-xs' : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}`}
             >
@@ -852,6 +890,13 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
             <div className="xl:col-span-12 flex flex-col gap-8">
               <DashboardAnalytics profile={profile} profileViews={profileViews} onUpgrade={() => setActiveTab('settings')} />
             </div>
+          </div>
+        ) : profile && activeTab === 'leads' ? (
+          <div className="flex flex-col gap-8 animate-in fade-in duration-200">
+            <ProfileLeadsManager 
+              profile={profile} 
+              onLeadsChange={(stats) => setLeadsStats(stats)}
+            />
           </div>
         ) : profile && activeTab === 'nfc' ? (
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
@@ -1477,6 +1522,52 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
                     className="text-[#0066cc] dark:text-[#58a6ff] text-xs font-semibold text-center hover:underline bg-neutral-100/60 dark:bg-white/5 py-2.5 rounded-xl truncate px-3"
                   >
                     https://chipng.com/{profile.username || 'username'}
+                  </a>
+                </div>
+              </div>
+            </section>
+
+            {/* 2-Way Contact Exchange Card */}
+            <section className="bg-white dark:bg-[#111318] border border-neutral-200/80 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden flex flex-col">
+              <div className="border-b border-neutral-100 dark:border-white/5 p-6 flex justify-between items-center bg-neutral-50/50 dark:bg-white/[0.02]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-neutral-950 dark:text-white tracking-tight">2-Way Contact Exchange</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-[#D2F843] text-[10px] font-mono font-bold">Active on NFC</span>
+                  </div>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">Let prospects send their contact details back to your dashboard with 1 tap</p>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-[#D2F843]/15 flex items-center justify-center text-[#5b7300] dark:text-[#D2F843]">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="p-6 flex flex-col gap-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-white/[0.02] border border-neutral-200/60 dark:border-white/5">
+                    <span className="text-[10px] font-mono uppercase text-neutral-400">Total Contacts</span>
+                    <div className="text-2xl font-extrabold text-neutral-950 dark:text-white mt-0.5">{leadsStats.total}</div>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-white/[0.02] border border-neutral-200/60 dark:border-white/5">
+                    <span className="text-[10px] font-mono uppercase text-amber-500">New Follow-Ups</span>
+                    <div className="text-2xl font-extrabold text-amber-500 mt-0.5">{leadsStats.newCount}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setActiveTab('leads')}
+                    className="flex-1 py-3 px-4 bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90 cursor-pointer shadow-xs"
+                  >
+                    <UserCheck className="w-4 h-4" /> View 2-Way Contacts CRM
+                  </button>
+                  <a
+                    href={`/${profile.username || ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-3 px-4 border border-neutral-200/80 dark:border-white/10 hover:bg-neutral-100 dark:hover:bg-white/5 text-neutral-900 dark:text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all"
+                    title="Test on live profile"
+                  >
+                    <span>Test on Card</span>
                   </a>
                 </div>
               </div>
@@ -2136,12 +2227,18 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
             {[
               { 
                 id: 'profile', 
-                label: 'My Profile', 
+                label: 'Profile', 
                 icon: User 
               },
               { 
+                id: 'leads', 
+                label: '2-Way Leads', 
+                icon: UserCheck,
+                badge: leadsStats.newCount > 0 ? leadsStats.newCount : undefined
+              },
+              { 
                 id: 'social', 
-                label: 'Manage Socials', 
+                label: 'Socials', 
                 icon: () => (
                   <svg className="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="2.5" />
@@ -2160,26 +2257,31 @@ export default function UserDashboard({ onNavigate, isDarkMode, toggleDarkMode }
               },
               { 
                 id: 'settings', 
-                label: 'Account Settings', 
+                label: 'Settings', 
                 icon: Settings 
               },
-            ].map((tab) => {
+            ].map((tab: any) => {
               const isActive = activeTab === tab.id;
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className="flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 cursor-pointer outline-none transition-all group"
+                  className="flex flex-col items-center justify-center flex-1 py-0.5 px-0.5 cursor-pointer outline-none transition-all group relative"
                 >
                   {/* Top Active Lime Line Indicator */}
-                  <div className={`w-10 sm:w-12 h-1 rounded-full mb-1 transition-all ${
+                  <div className={`w-8 sm:w-10 h-1 rounded-full mb-1 transition-all ${
                     isActive ? 'bg-[#D2F843]' : 'bg-transparent'
                   }`} />
-                  <div className={`transition-colors ${
+                  <div className={`relative transition-colors ${
                     isActive ? 'text-neutral-950 dark:text-white' : 'text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200'
                   }`}>
                     <Icon className="w-5 h-5 mx-auto" />
+                    {tab.badge && (
+                      <span className="absolute -top-1.5 -right-2 px-1 min-w-3.5 h-3.5 rounded-full bg-amber-500 text-white font-mono text-[9px] font-extrabold flex items-center justify-center leading-none shadow-xs">
+                        {tab.badge}
+                      </span>
+                    )}
                   </div>
                   <span className={`text-[10px] sm:text-[11px] mt-1 whitespace-nowrap transition-colors ${
                     isActive ? 'font-bold text-neutral-950 dark:text-white' : 'font-medium text-neutral-500 dark:text-neutral-400'

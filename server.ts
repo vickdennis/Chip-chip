@@ -357,10 +357,25 @@ async function startServer() {
     }
   });
 
-  app.get('/api/leads/profile/:profileId', (req, res) => {
+  app.get('/api/leads/profile/:profileId', async (req, res) => {
     try {
       const { profileId } = req.params;
-      const leads = db.prepare('SELECT * FROM leads WHERE profile_id = ? ORDER BY created_at DESC').all(profileId);
+      const idsToMatch = [profileId];
+
+      try {
+        const { data } = await getSupabase()
+          .from('profiles')
+          .select('id, username')
+          .or(`id.eq.${profileId},username.eq.${profileId}`)
+          .maybeSingle();
+        if (data) {
+          if (data.id && !idsToMatch.includes(data.id)) idsToMatch.push(data.id);
+          if (data.username && !idsToMatch.includes(data.username)) idsToMatch.push(data.username);
+        }
+      } catch (e) {}
+
+      const placeholders = idsToMatch.map(() => '?').join(',');
+      const leads = db.prepare(`SELECT * FROM leads WHERE profile_id IN (${placeholders}) ORDER BY created_at DESC`).all(...idsToMatch);
       const total = leads.length;
       const newCount = (leads as any[]).filter(l => l.status === 'new' || !l.status).length;
       const convertedCount = (leads as any[]).filter(l => l.status === 'converted').length;
